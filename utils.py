@@ -3,6 +3,8 @@ import json
 import pickle
 import uuid
 import re
+
+import numpy as np
 import simplejson
 import unidecode
 
@@ -503,7 +505,6 @@ def word_frequency(df, text_input, language_option, texts=None):
 
     word_count = []
     txt = text_input.lower()
-    print(df.columns)
     for word in list(df['name']):
         word = word.lower()
         stem_word = stemmer.stem(word)
