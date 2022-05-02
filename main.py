@@ -1,3 +1,4 @@
+import itertools
 from logging import log
 import os
 import json
@@ -50,8 +51,8 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 if "en_nlp" not in st.session_state:
     st.session_state.en_nlp = spacy.load("en_core_web_sm")
 
-# if "it_nlp" not in st.session_state:
-#     st.session_state.it_nlp = spacy.load("it_core_news_sm")
+if "it_nlp" not in st.session_state:
+    st.session_state.it_nlp = spacy.load("it_core_news_sm")
 
 
 # @st.cache(suppress_st_warning=True) 
@@ -109,7 +110,7 @@ with st.form("my_form"):
     # loti_path = load_lottifile('lotti/seo.json')
     # with st.sidebar:
     #     st_lottie(loti_path, width=280, height=130)
-   
+
 #st.title('Lotti')
 
     with st.expander("ℹ️ - About this app "):
@@ -165,12 +166,11 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
         else:
             google_api = json.loads(author_google_key)
             #print(google_api)
-        
 
     if input_type_selectbox == "URL":
-        text_input = st.text_input('Please enter a URL', placeholder='https://gofishdigital.com/what-is-semantic-seo/')        
+        text_input = st.text_input('Please enter a URL', placeholder='https://gofishdigital.com/what-is-semantic-seo/')
         #print('text_input 171 the first lien\n',text_input)
-     
+
         meta_tags_only = st.checkbox('Extract Entities only from meta tags (tag_title, meta_description & H1-4)')
         #print('172 meta tag', meta_tags_only)
         if "last_field_type" in st.session_state and st.session_state.last_field_type != input_type_selectbox:
@@ -178,7 +178,6 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
             st.session_state.google_api = False
         st.session_state.last_field_type = input_type_selectbox
     elif input_type_selectbox == "Text":
-        
         if "last_field_type" not in st.session_state:
             st.session_state.last_field_type = input_type_selectbox
             st.session_state.text_razor = False
@@ -190,6 +189,10 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
         meta_tags_only = False
         text_input = st.text_area('Please enter a text', placeholder='Posts involving Semantic SEO at Google include structured data, schema, and knowledge graphs, with SERPs that answer questions and rank entities - Bill Slawsky.')
     elif input_type_selectbox == "URL vs URL":
+        if "last_field_type" in st.session_state and st.session_state.last_field_type != input_type_selectbox:
+            st.session_state.text_razor = False
+            st.session_state.google_api = False
+        meta_tags_only = False
         st.session_state.last_field_type = input_type_selectbox
 
         url1 = st.text_input(label='Enter first URL')
@@ -197,24 +200,23 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
 
         # Every form must have a submit button.
         # submitted = st.form_submit_button("Submit")
-        text_input = url1+url2
+        are_urls = utils.is_url(url1) and utils.is_url(url2)
+        urls = [url1, url2]
+        text_input = "None"
         # if submitted:
         #     st.write("First Url", url1, "Second Url", url2)
 
     is_url = utils.is_url(text_input)
-   # print('is_uri from 192 line\n', is_url)
-    spacy_pos = st.checkbox('Process Part-of-Speech analysis with SpaCy')
-    # spacy_pos = False
-    scrape_all = st.checkbox("Scrape ALL the Entities descriptions from Wikipedia. This is a time-consuming task, so grab a coffee if you need all the descriptions in your CSV file. The descriptions of the Entities you select for your 'about' and 'mentions' schema properties will be scraped and present in the corresponding JSON-LD files")
-    #rint('Scrape all', scrape_all)
-    if api_selectbox == "TextRazor":
-        extract_categories_topics = st.checkbox('Extract Categories and Topics')
+    if input_type_selectbox != "URL vs URL":
+    # print('is_uri from 192 line\n', is_url)
+        spacy_pos = st.checkbox('Process Part-of-Speech analysis with SpaCy')
+        # spacy_pos = False
+        scrape_all = st.checkbox("Scrape ALL the Entities descriptions from Wikipedia. This is a time-consuming task, so grab a coffee if you need all the descriptions in your CSV file. The descriptions of the Entities you select for your 'about' and 'mentions' schema properties will be scraped and present in the corresponding JSON-LD files")
+        #rint('Scrape all', scrape_all)
+        if api_selectbox == "TextRazor":
+            extract_categories_topics = st.checkbox('Extract Categories and Topics')
     submitted = st.form_submit_button("Submit")
     if submitted:
-#         loti_path = load_lottifile('lotti/seo2.json')
-# #st.titl
-#         st_lottie(loti_path, width=280, height=130, loop=True)
-
         if not text_razor_key and not google_api:
             st.warning("Please fill out all the required fields")
         elif not text_input:
@@ -222,55 +224,45 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
         else:
             st.session_state.submit = True
             if api_selectbox == "TextRazor":
-                output, response, topics_output, categories_output = utils.get_df_text_razor(text_razor_key, text_input, extract_categories_topics, is_url, scrape_all)
-                #print('output 167 line:\n', output) #-------------------------
-               # print('response 213 line :\n',response)
-                st.session_state.text = response.cleaned_text
-                #response1 = [response.cleaned_text]
-                #----------------------updated--------------
-                texts = st.session_state.text
-                #--------------------end--------------------
-                #print('response.cleaned_text\n', response.cleaned_text)
-                #-------------------------------------------------------------------
-                st.session_state.text_razor = True
-                st.session_state.df_razor = pd.DataFrame(output)
-                if topics_output:
-                    st.session_state.df_razor_topics = pd.DataFrame(topics_output)
-                if categories_output:
-                    st.session_state.df_razor_categories = pd.DataFrame(categories_output)
+                if input_type_selectbox == "URL vs URL":
+                    output1, output2, language = utils.get_df_url2url_razor(text_razor_key, urls, are_urls)
+                    st.session_state.text_razor = False
+                    st.session_state.google_api = False
+                    st.session_state.urlvsurl = True
+                    st.session_state.df_url1 = pd.DataFrame(output1)
+                    st.session_state.df_url2 = pd.DataFrame(output2)
+                    lang = language
+                else:
+                    output, response, topics_output, categories_output = utils.get_df_text_razor(text_razor_key, text_input, extract_categories_topics, is_url, scrape_all)
+                    st.session_state.text = response.cleaned_text
+                    texts = st.session_state.text
+                    st.session_state.text_razor = True
+                    st.session_state.df_razor = pd.DataFrame(output)
+                    if topics_output:
+                        st.session_state.df_razor_topics = pd.DataFrame(topics_output)
+                    if categories_output:
+                        st.session_state.df_razor_categories = pd.DataFrame(categories_output)
+                    lang = response.language
             elif api_selectbox == "Google NLP":
-                output, response = utils.get_df_google_nlp(google_api, text_input, is_url, scrape_all)
-                #print('is_url', is_url)
-                #response1 = list(response)
-                response1 = [response]
-                response2 = list(response1)
-                #response2 = response2[0].lower()
-                #print('type of response \n', type(response))
-                #print()
-                # st.write('response==>\n', response)
-                # st.write('response==>\n', response2)
-                #st.write('is_arul\n', is_url)
-                #st.write('233 response.clean.txt', response.cleaned_text)
-                #texts = response
-                #print('229 line response google api', response)
-                #print('201 text output', output)
-                # print('response', response.clean)
-                st.session_state.text = text_input  #just gives the url for google api text_intput from url
-                #print("text_input 233 output google api", text_input)
-                st.session_state.google_api = True
-                st.session_state.df_google = pd.DataFrame(output)
-            
-            st.session_state.lang = response.language
-            language_option = response.language
-           # print('langu form==>', response.language)
+                if input_type_selectbox == "URL vs URL":
+                    output1, output2, response1, response2 = utils.get_df_url2url_google(google_api, urls,
+                                                                                         are_urls, scrape_all)
+                    st.session_state.text_razor = False
+                    st.session_state.google_api = False
+                    st.session_state.df_url1 = pd.DataFrame(output1)
+                    st.session_state.df_url2 = pd.DataFrame(output2)
+                    lang = response1.language
+                else:
+                    output, response = utils.get_df_google_nlp(google_api, text_input, is_url, scrape_all)
+                    response1 = [response]
+                    response2 = list(response1)
 
-# #----------------------------Convert Confidence score value into percentage----------------------
-# def conf(col):
-#     if col in df:
-#         df[col] = (df[[col]].div(max(df[col]), axis=1)*100).round(2).astype(str) + '%'
- 
-#  #-------------------------------------end----------------------------------------------
-
+                    st.session_state.text = text_input  #just gives the url for google api text_intput from url
+                    st.session_state.google_api = True
+                    st.session_state.df_google = pd.DataFrame(output)
+                    lang = response.language
+            st.session_state.lang = lang
+            language_option = lang
 
 if 'submit' in st.session_state and ("text_razor" in st.session_state and st.session_state.text_razor == True):
     text_input, is_url = utils.write_meta(text_input, meta_tags_only, is_url)
@@ -356,11 +348,11 @@ if 'submit' in st.session_state and ("google_api" in st.session_state and st.ses
     #response1 = [response]
     utils.conf(df, "Confidence Score")
     st.write('### Entities', df)
-    # if not is_url:
-    #     word_frequency(df, text_input, language_option, texts) 
-    # # else:
-    # #     word_frequency1(df,  response2)        #-----------------function call for google api
-    # st.write('### Entities', df)
+    if not is_url:
+        utils.word_frequency(df, text_input, language_option, texts)
+    else:
+        utils.word_frequency_google(df, response2)  #-----------------function call for google api
+    st.write('### Entities', df)
     
     # st.write('#### Entity table Dimension', df.shape)
     # if not is_url:
@@ -391,3 +383,32 @@ if 'submit' in st.session_state and ("google_api" in st.session_state and st.ses
             doc = st.session_state.it_nlp(st.session_state.text)
             #print('Itelian')
         visualize_parser(doc)
+
+
+if 'submit' in st.session_state and ("urlvsurl" in st.session_state and st.session_state.urlvsurl==True):
+    if 'df_url1' in st.session_state and "df_url2" in st.session_state:
+        df1 = list(itertools.chain.from_iterable(st.session_state["df_url1"].values))
+        df2 = list(itertools.chain.from_iterable(st.session_state["df_url2"].values))
+
+    ab = list(set(df1).intersection(set(df2)))
+    st.write('### Entities in both urls', pd.DataFrame({"entities": ab}))
+    amb = list(set(df1).difference(set(df2)))
+    bma = list(set(df2).difference(set(df1)))
+    # st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
+    # st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
+
+    if len(df1) > 0 and len(df2) > 0:
+        download_buttons = ""
+        download_buttons += utils.download_button(pd.DataFrame({"entities": ab}), 'url_common.csv', 'Download common Entities CSV ✨', pickle_it=False)
+        if amb:
+            st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
+            download_buttons += utils.download_button(pd.DataFrame({"entities": amb}), 'url1-url2.csv', 'Download url1 Entities CSV ✨', pickle_it=False)
+        else:
+            st.write("0 entities in url1 which are not present in url2")
+        if bma:
+            st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
+            download_buttons += utils.download_button(pd.DataFrame({"entities": bma}), 'url2-url1.csv',
+                                                      'Download url2 Entities CSV ✨', pickle_it=False)
+        else:
+            st.write("0 entities in url2 which are not present url1")
+        st.markdown(download_buttons, unsafe_allow_html=True)

@@ -3,7 +3,7 @@ import json
 import pickle
 import uuid
 import re
-
+import math
 import numpy as np
 import simplejson
 import unidecode
@@ -363,6 +363,105 @@ def get_df_text_razor(text_razor_key, text_input, extract_categories_topics, is_
     return output, response, topics_output, categories_output
 
 
+def get_df_url2url_razor(text_razor_key, text_input, are_urls, scrape_all=False):
+    # x = True
+    """ Get data using TextRazor API.
+
+    Args:
+        text_razor_key (str): TextRazor API key.
+        text_input (str): Text to analyze.
+        are_urls (bool): If True, text_input has two URLs.
+        scrape_all (boolean): If True, scrape all data.
+
+    Returns:
+        output (list): List of dictionaries containing extracted data.
+        response (TextRazorResponse): TextRazor response object.
+        topics_output (list): List of dictionaries containing extracted topics.
+        categories_output (list): List of dictionaries containing extracted categories.
+    """
+    progress_val = 0
+    progress_bar = st.progress(progress_val)
+    try:
+        analyzer = TextRazorAnalyzer(text_razor_key)
+        response1 = analyzer.analyze(text_input[0], are_urls)
+        response2 = analyzer.analyze(text_input[1], are_urls)
+    except TextRazorAnalysisException:
+        st.warning("Please make sure that the API Key is correct")
+        st.stop()
+
+    output = []
+    known_entities = []
+    output2 = []
+    known_entities2 = []
+    for i, entity in enumerate(response1.entities()):
+
+        if entity.id not in known_entities and \
+                entity.confidence_score > 0 and \
+                entity.relevance_score > 0 and \
+                not str(entity.id).isnumeric() and not is_time(entity.id):
+            summary = ""
+            en_link = ""
+            if scrape_all:  # or x:
+                summary, en_link, it_link = get_summary_link(entity.id, response1.language)
+            if entity.dbpedia_types:
+                entity_type = entity.dbpedia_types[0]
+            elif entity.freebase_types:
+                entity_type = entity.freebase_types[0]
+            else:
+                entity_type = "thing"
+            data = {
+                "DBpedia Category": entity_type.split("/")[-1],
+                "name": entity.id,
+                "description": summary,
+                "Wikidata Id": entity.wikidata_id,
+                "Confidence Score": entity.confidence_score,
+                # "Confidence Score":f"{(entity.confidence_score/max(entity.confidence_score))* 100:.2f}%",
+                "Relevance Score": f"{entity.relevance_score * 100:.2f}%",
+                "Wikipedia Link": entity.wikipedia_link,
+                "English Wikipedia Link": en_link,
+            }
+            if not scrape_all:
+                del data["description"]
+                del data["English Wikipedia Link"]
+            # output.append(data)
+            known_entities.append(entity.id)
+
+        for i, entity in enumerate(response2.entities()):
+
+            if entity.id not in known_entities2 and \
+                    entity.confidence_score > 0 and \
+                    entity.relevance_score > 0 and \
+                    not str(entity.id).isnumeric() and not is_time(entity.id):
+                summary = ""
+                en_link = ""
+                if scrape_all:  # or x:
+                    summary, en_link, it_link = get_summary_link(entity.id, response2.language)
+                if entity.dbpedia_types:
+                    entity_type = entity.dbpedia_types[0]
+                elif entity.freebase_types:
+                    entity_type = entity.freebase_types[0]
+                else:
+                    entity_type = "thing"
+                data = {
+                    "DBpedia Category": entity_type.split("/")[-1],
+                    "name": entity.id,
+                    "description": summary,
+                    "Wikidata Id": entity.wikidata_id,
+                    "Confidence Score": entity.confidence_score,
+                    # "Confidence Score":f"{(entity.confidence_score/max(entity.confidence_score))* 100:.2f}%",
+                    "Relevance Score": f"{entity.relevance_score * 100:.2f}%",
+                    "Wikipedia Link": entity.wikipedia_link,
+                    "English Wikipedia Link": en_link,
+                }
+                if not scrape_all:
+                    del data["description"]
+                    del data["English Wikipedia Link"]
+                # output.append(data)
+                known_entities2.append(entity.id)
+            progress_bar.progress(i / len(response2.entities()))
+
+    return known_entities, known_entities2, response1.language
+
 # ----------------------------Convert Confidence score value into percentage----------------------
 def conf(df, col):
     if col in df:
@@ -447,6 +546,118 @@ def get_df_google_nlp(key, text_input, is_url, scrape_all):
     return output, response
 
 
+def get_df_url2url_google(key, text_input, are_urls, scrape_all):
+    # x = True
+    # scrape_all= True
+    """ Get data using Google Natural Language API.
+
+    Args:
+        key (str): Google Natural Language API key.
+        text_input (str): Text to analyze.
+        are_urls (boolean): If True, text_input are two urls.
+        scrape_all (boolean): If True, scrape all data.
+
+    Returns:
+        output (list): List of dictionaries containing extracted data.
+        response (GoogleNLPResponse): Google Natural Language API response object.
+    """
+    progress_val = 0
+    progress_bar = st.progress(progress_val)
+    try:
+        analyzer = GoogleNLPAnalyzer(key)
+        response1 = analyzer.analyze(text_input[0], are_urls)
+        response2 = analyzer.analyze(text_input[1], are_urls)
+        if not response1 or not response2:
+            st.warning("Please make sure that the API Key is correct")
+            st.stop()
+    except Exception as e:
+        print(e)
+        st.warning("Please make sure that the API Key is correct")
+        st.stop()
+
+    output1 = []
+    output2 = []
+    known_entities = []
+    known_entities2 = []
+    for i, entity in enumerate(response1.entities):
+        progress_val += 1
+        if entity.name not in known_entities and \
+                not str(entity.name).isnumeric() and not is_time(entity.name):
+            summary = ""
+            en_link = ""
+            it_link = ""
+            if scrape_all:  # or x:
+                summary, en_link, it_link = get_summary_link(entity.name, response1.language)
+
+            if entity.metadata.get("mid"):
+                mid = "https://www.google.com/search?kgmid=" + entity.metadata.get("mid")
+            else:
+                mid = ""
+            if entity.type_:
+                row_type = google_types[entity.type_]
+                if row_type in ["NUMBER", "PRICE", "DATE"]:
+                    continue
+            else:
+                row_type = "thing"
+            data = {
+                "type": row_type,
+                "name": unidecode.unidecode(entity.name),
+                "description": summary,
+                "Salience": f"{entity.salience * 100:.2f}%",
+                "Knowledge Graph ID": mid,
+                "Italian Wikipedia Link": it_link,
+                "English Wikipedia Link": en_link,
+            }
+            # print('\nLanguage\n', response.language)
+            if not scrape_all:
+                del data["description"]
+                del data["English Wikipedia Link"]
+                del data["Italian Wikipedia Link"]
+            output1.append(data)
+            known_entities.append(entity.name)
+        progress_bar.progress((progress_val) / len(response1.entities))
+
+    for i, entity in enumerate(response2.entities):
+        progress_val += 1
+        if entity.name not in known_entities2 and \
+                not str(entity.name).isnumeric() and not is_time(entity.name):
+            summary = ""
+            en_link = ""
+            it_link = ""
+            if scrape_all:  # or x:
+                summary, en_link, it_link = get_summary_link(entity.name, response2.language)
+
+            if entity.metadata.get("mid"):
+                mid = "https://www.google.com/search?kgmid=" + entity.metadata.get("mid")
+            else:
+                mid = ""
+            if entity.type_:
+                row_type = google_types[entity.type_]
+                if row_type in ["NUMBER", "PRICE", "DATE"]:
+                    continue
+            else:
+                row_type = "thing"
+            data = {
+                "type": row_type,
+                "name": unidecode.unidecode(entity.name),
+                "description": summary,
+                "Salience": f"{entity.salience * 100:.2f}%",
+                "Knowledge Graph ID": mid,
+                "Italian Wikipedia Link": it_link,
+                "English Wikipedia Link": en_link,
+            }
+            # print('\nLanguage\n', response.language)
+            if not scrape_all:
+                del data["description"]
+                del data["English Wikipedia Link"]
+                del data["Italian Wikipedia Link"]
+
+            output2.append(data)
+            known_entities2.append(entity.name)
+        progress_bar.progress((progress_val) / len(response2.entities))
+    return output1, output2, response1, response2
+
+
 def write_meta(text_input, meta_tags_only, is_url):
     """ Concatenate meta tags with input text.
 
@@ -521,8 +732,8 @@ def word_frequency(df, text_input, language_option, texts=None):
 
 
 # ---------------------google api frequency count-----------------
-def word_frequency1(df, response2):
-    import math
+def word_frequency_google(df, response2):
+
     word_count = []
 
     for word in list(df['name']):
@@ -536,3 +747,10 @@ def word_frequency1(df, response2):
     df = df.insert(loc=3, column='Frequency', value=np.array(word_count))
     # df['Frequency2'] = df['Frequency2'].astype('int64')
     return df
+
+#----------------------------Convert Confidence score value into percentage----------------------
+# def conf(col):
+#     if col in df:
+#         df[col] = (df[[col]].div(max(df[col]), axis=1)*100).round(2).astype(str) + '%'
+
+#-------------------------------------end----------------------------------------------
