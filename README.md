@@ -26,3 +26,9 @@ TES is a streamlit App devoted to NEL: Named Entities Recognition and Wikificati
 ```text
 f0852f0515c92c0686d129f79ff9c5584b87c1b67d503073a4c93ec9
 ```
+
+Test urls
+```text
+https://alimentazionebambini.e-coop.it/pedagogia/giochi-di-natale-con-i-numeri-idea-montessori-5-6-anni/
+https://alimentazionebambini.e-coop.it/pedagogia/metodo-montessori/ciclo-vitale-di-una-piantina-per-bambini-piccoli/
+```

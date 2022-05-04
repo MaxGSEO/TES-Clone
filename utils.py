@@ -654,7 +654,7 @@ def get_df_url2url_google(key, text_input, are_urls, scrape_all):
 
             output2.append(data)
             known_entities2.append(entity.name)
-        progress_bar.progress((progress_val) / len(response2.entities))
+        progress_bar.progress(i / len(response2.entities))
     return output1, output2, response1, response2
 
 

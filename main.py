@@ -211,10 +211,11 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
     # print('is_uri from 192 line\n', is_url)
         spacy_pos = st.checkbox('Process Part-of-Speech analysis with SpaCy')
         # spacy_pos = False
-        scrape_all = st.checkbox("Scrape ALL the Entities descriptions from Wikipedia. This is a time-consuming task, so grab a coffee if you need all the descriptions in your CSV file. The descriptions of the Entities you select for your 'about' and 'mentions' schema properties will be scraped and present in the corresponding JSON-LD files")
         #rint('Scrape all', scrape_all)
         if api_selectbox == "TextRazor":
             extract_categories_topics = st.checkbox('Extract Categories and Topics')
+    scrape_all = st.checkbox(
+        "Scrape ALL the Entities descriptions from Wikipedia. This is a time-consuming task, so grab a coffee if you need all the descriptions in your CSV file. The descriptions of the Entities you select for your 'about' and 'mentions' schema properties will be scraped and present in the corresponding JSON-LD files")
     submitted = st.form_submit_button("Submit")
     if submitted:
         if not text_razor_key and not google_api:
@@ -226,9 +227,8 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
             if api_selectbox == "TextRazor":
                 if input_type_selectbox == "URL vs URL":
                     output1, output2, language = utils.get_df_url2url_razor(text_razor_key, urls, are_urls)
-                    st.session_state.text_razor = False
+                    st.session_state.text_razor = True
                     st.session_state.google_api = False
-                    st.session_state.urlvsurl = True
                     st.session_state.df_url1 = pd.DataFrame(output1)
                     st.session_state.df_url2 = pd.DataFrame(output2)
                     lang = language
@@ -237,6 +237,7 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
                     st.session_state.text = response.cleaned_text
                     texts = st.session_state.text
                     st.session_state.text_razor = True
+                    st.session_state.google_api = False
                     st.session_state.df_razor = pd.DataFrame(output)
                     if topics_output:
                         st.session_state.df_razor_topics = pd.DataFrame(topics_output)
@@ -248,167 +249,195 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
                     output1, output2, response1, response2 = utils.get_df_url2url_google(google_api, urls,
                                                                                          are_urls, scrape_all)
                     st.session_state.text_razor = False
-                    st.session_state.google_api = False
+                    st.session_state.google_api = True
                     st.session_state.df_url1 = pd.DataFrame(output1)
                     st.session_state.df_url2 = pd.DataFrame(output2)
                     lang = response1.language
                 else:
                     output, response = utils.get_df_google_nlp(google_api, text_input, is_url, scrape_all)
-                    response1 = [response]
-                    response2 = list(response1)
-
                     st.session_state.text = text_input  #just gives the url for google api text_intput from url
                     st.session_state.google_api = True
+                    st.session_state.text_razor = False
                     st.session_state.df_google = pd.DataFrame(output)
                     lang = response.language
             st.session_state.lang = lang
             language_option = lang
 
 if 'submit' in st.session_state and ("text_razor" in st.session_state and st.session_state.text_razor == True):
-    text_input, is_url = utils.write_meta(text_input, meta_tags_only, is_url)
-   # print('text_input\n', text_input)
-   # print('is_url\n', is_url)
-    if 'df_razor' in st.session_state:
-        df = st.session_state["df_razor"]
+    if st.session_state.last_field_type == "URL vs URL":
+        if 'df_url1' in st.session_state and "df_url2" in st.session_state:
+            df1 = list(itertools.chain.from_iterable(st.session_state["df_url1"].values))
+            df2 = list(itertools.chain.from_iterable(st.session_state["df_url2"].values))
 
-    if len(df) > 0:
-        df['temp'] = df['Relevance Score'].str.strip('%').astype(float)
-        df = df.sort_values('temp', ascending=False)
-        del df['temp']
-        selected_about_names = st.multiselect('Select About Entities:', df.name)
-        selected_mention_names = st.multiselect('Select Mentions Entities:', df.name)
-        #--------------Frequency count--------------
-        #if not url:
-        utils.word_frequency(df, text_input, language_option, texts) #-----------------------Function call for textrazor-------------
-        st.write('### Entities', df)
-        df = df.sort_values('Frequency', ascending=False)
-        st.write('### Top 10 Entities by Frequency', df[['name', 'Frequency']].head(10))
-    #print(is_url)
-    #print(text_input)
-    utils.conf(df, "Confidence Score")
-    # st.write('### Entities', df)
-    #st.write('#### Entity table Dimension', df.shape)
-    # df1 = df.sort_values('Frequency', ascending=False)
-    # st.write('### Top 10 Entities by Frequency', df1[['name', 'Frequency']].head(10))
-    #st.write(response1)
+        ab = list(set(df1).intersection(set(df2)))
+        st.write('### Entities in both urls', pd.DataFrame({"entities": ab}))
+        amb = list(set(df1).difference(set(df2)))
+        bma = list(set(df2).difference(set(df1)))
+        # st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
+        # st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
 
-    c, t = st.columns(2)
-    if 'df_razor_categories' in st.session_state and extract_categories_topics:
-        with c:
-            df_categories = st.session_state["df_razor_categories"]
-            st.write('### Categories', df_categories)
-    if 'df_razor_topics' in st.session_state and extract_categories_topics:
-        with t:
+        if len(df1) > 0 and len(df2) > 0:
+            download_buttons = ""
+            download_buttons += utils.download_button(pd.DataFrame({"entities": ab}), 'url_common.csv',
+                                                      'Download common Entities CSV ✨', pickle_it=False)
+            if amb:
+                st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
+                download_buttons += utils.download_button(pd.DataFrame({"entities": amb}), 'url1-url2.csv',
+                                                          'Download url1 Entities CSV ✨', pickle_it=False)
+            else:
+                st.write("0 entities in url1 which are not present in url2")
+            if bma:
+                st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
+                download_buttons += utils.download_button(pd.DataFrame({"entities": bma}), 'url2-url1.csv',
+                                                          'Download url2 Entities CSV ✨', pickle_it=False)
+            else:
+                st.write("0 entities in url2 which are not present url1")
+            st.markdown(download_buttons, unsafe_allow_html=True)
+    else:
+        text_input, is_url = utils.write_meta(text_input, meta_tags_only, is_url)
+       # print('text_input\n', text_input)
+       # print('is_url\n', is_url)
+        if 'df_razor' in st.session_state:
+            df = st.session_state["df_razor"]
+
+        if len(df) > 0:
+            df['temp'] = df['Relevance Score'].str.strip('%').astype(float)
+            df = df.sort_values('temp', ascending=False)
+            del df['temp']
+            selected_about_names = st.multiselect('Select About Entities:', df.name)
+            selected_mention_names = st.multiselect('Select Mentions Entities:', df.name)
+            #--------------Frequency count--------------
+            #if not url:
+            utils.word_frequency(df, text_input, language_option, texts) #-----------------------Function call for textrazor-------------
+            st.write('### Entities', df)
+            df = df.sort_values('Frequency', ascending=False)
+            st.write('### Top 10 Entities by Frequency', df[['name', 'Frequency']].head(10))
+        #print(is_url)
+        #print(text_input)
+        utils.conf(df, "Confidence Score")
+        # st.write('### Entities', df)
+        #st.write('#### Entity table Dimension', df.shape)
+        # df1 = df.sort_values('Frequency', ascending=False)
+        # st.write('### Top 10 Entities by Frequency', df1[['name', 'Frequency']].head(10))
+        #st.write(response1)
+
+        c, t = st.columns(2)
+        if 'df_razor_categories' in st.session_state and extract_categories_topics:
+            with c:
+                df_categories = st.session_state["df_razor_categories"]
+                st.write('### Categories', df_categories)
+        if 'df_razor_topics' in st.session_state and extract_categories_topics:
+            with t:
+                df_topics = st.session_state["df_razor_topics"]
+                st.write('### Topics', df_topics)
+
+        if len(df) > 0:
+            about_download_button = utils.download_button(utils.convert_schema("about", df.loc[df['name'].isin(selected_about_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'about-entities.json', 'Download About Entities JSON-LD ✨', pickle_it=False)
+            if len(df.loc[df['name'].isin(selected_about_names)]) > 0:
+                st.markdown(about_download_button, unsafe_allow_html=True)
+            mention_download_button = utils.download_button(utils.convert_schema("mentions", df.loc[df['name'].isin(selected_mention_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'mentions-entities.json', 'Download Mentions Entities JSON-LD ✨', pickle_it=False)
+            if len(df.loc[df['name'].isin(selected_mention_names)]) > 0:
+                st.markdown(mention_download_button, unsafe_allow_html=True)
+        if "df_razor_topics" in st.session_state and extract_categories_topics:
             df_topics = st.session_state["df_razor_topics"]
-            st.write('### Topics', df_topics)
-    
-    if len(df) > 0:
-        about_download_button = utils.download_button(utils.convert_schema("about", df.loc[df['name'].isin(selected_about_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'about-entities.json', 'Download About Entities JSON-LD ✨', pickle_it=False)
-        if len(df.loc[df['name'].isin(selected_about_names)]) > 0:
-            st.markdown(about_download_button, unsafe_allow_html=True)
-        mention_download_button = utils.download_button(utils.convert_schema("mentions", df.loc[df['name'].isin(selected_mention_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'mentions-entities.json', 'Download Mentions Entities JSON-LD ✨', pickle_it=False)
-        if len(df.loc[df['name'].isin(selected_mention_names)]) > 0:
-            st.markdown(mention_download_button, unsafe_allow_html=True)
-    if "df_razor_topics" in st.session_state and extract_categories_topics:
-        df_topics = st.session_state["df_razor_topics"]
-        download_buttons = ""
-        download_buttons += utils.download_button(df_topics, 'topics.csv', 'Download all Topics CSV ✨', pickle_it=False)
-        st.markdown(download_buttons, unsafe_allow_html=True)
-    if "df_razor_categories" in st.session_state and extract_categories_topics:
-        df_categories = st.session_state["df_razor_categories"]
-        download_buttons = ""
-        download_buttons += utils.download_button(df_categories, 'categories.csv', 'Download all Categories CSV ✨', pickle_it=False)
-        st.markdown(download_buttons, unsafe_allow_html=True)
-    if len(df) > 0:
-        download_buttons = ""
-        download_buttons += utils.download_button(df, 'entities.csv', 'Download all Entities CSV ✨', pickle_it=False)
-        st.markdown(download_buttons, unsafe_allow_html=True)
-    if spacy_pos:
-        if st.session_state.lang in "eng":
-            #print('textrazor-eng lang\n', st.session_state.lang)
-            doc = st.session_state.en_nlp(st.session_state.text)
-        elif st.session_state.lang in "ita":
-            #print('textrazor-ita lang\n', st.session_state.lang)
-            doc = st.session_state.it_nlp(st.session_state.text)
-        visualize_parser(doc)
+            download_buttons = ""
+            download_buttons += utils.download_button(df_topics, 'topics.csv', 'Download all Topics CSV ✨', pickle_it=False)
+            st.markdown(download_buttons, unsafe_allow_html=True)
+        if "df_razor_categories" in st.session_state and extract_categories_topics:
+            df_categories = st.session_state["df_razor_categories"]
+            download_buttons = ""
+            download_buttons += utils.download_button(df_categories, 'categories.csv', 'Download all Categories CSV ✨', pickle_it=False)
+            st.markdown(download_buttons, unsafe_allow_html=True)
+        if len(df) > 0:
+            download_buttons = ""
+            download_buttons += utils.download_button(df, 'entities.csv', 'Download all Entities CSV ✨', pickle_it=False)
+            st.markdown(download_buttons, unsafe_allow_html=True)
+        if spacy_pos:
+            if st.session_state.lang in "eng":
+                #print('textrazor-eng lang\n', st.session_state.lang)
+                doc = st.session_state.en_nlp(st.session_state.text)
+            elif st.session_state.lang in "ita":
+                #print('textrazor-ita lang\n', st.session_state.lang)
+                doc = st.session_state.it_nlp(st.session_state.text)
+            visualize_parser(doc)
 
 if 'submit' in st.session_state and ("google_api" in st.session_state and st.session_state.google_api == True):
-    text_input, is_url = utils.write_meta(text_input, meta_tags_only, is_url)
-    # st.write('text_input 380|', text_input)
-    # st.write('is url 380\n', is_url)
-    if 'df_google' in st.session_state:
-        df = st.session_state["df_google"]
-    if len(df) > 0:
-        df['temp'] = df['Salience'].str.strip('%').astype(float)
-        df = df.sort_values('temp', ascending=False)
-        del df['temp']
-        selected_about_names = st.multiselect('Select About Entities:', df.name)
-        selected_mention_names = st.multiselect('Select Mentions Entities:', df.name)
-        #---------------------frequency counter
-    #response1 = [response]
-    utils.conf(df, "Confidence Score")
-    st.write('### Entities', df)
-    if not is_url:
-        utils.word_frequency(df, text_input, language_option, texts)
+    if st.session_state.last_field_type == "URL vs URL":
+        if 'df_url1' in st.session_state and "df_url2" in st.session_state:
+            df1 = list(itertools.chain.from_iterable(st.session_state["df_url1"].values))
+            df2 = list(itertools.chain.from_iterable(st.session_state["df_url2"].values))
+
+        ab = list(set(df1).intersection(set(df2)))
+        st.write('### Entities in both urls', pd.DataFrame({"entities": ab}))
+        amb = list(set(df1).difference(set(df2)))
+        bma = list(set(df2).difference(set(df1)))
+        # st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
+        # st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
+
+        if len(df1) > 0 and len(df2) > 0:
+            download_buttons = ""
+            download_buttons += utils.download_button(pd.DataFrame({"entities": ab}), 'url_common.csv',
+                                                      'Download common Entities CSV ✨', pickle_it=False)
+            if amb:
+                st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
+                download_buttons += utils.download_button(pd.DataFrame({"entities": amb}), 'url1-url2.csv',
+                                                          'Download url1 Entities CSV ✨', pickle_it=False)
+            else:
+                st.write("0 entities in url1 which are not present in url2")
+            if bma:
+                st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
+                download_buttons += utils.download_button(pd.DataFrame({"entities": bma}), 'url2-url1.csv',
+                                                          'Download url2 Entities CSV ✨', pickle_it=False)
+            else:
+                st.write("0 entities in url2 which are not present url1")
+            st.markdown(download_buttons, unsafe_allow_html=True)
     else:
-        utils.word_frequency_google(df, response2)  #-----------------function call for google api
-    st.write('### Entities', df)
-    
-    # st.write('#### Entity table Dimension', df.shape)
-    # if not is_url:
-    #     df1 = df.sort_values('Frequency', ascending=False)
-    #     st.write('### Top 10 Entities', df1[['name', 'Frequency']].head(10))
-    
-    #response2 = list(response)
-    #st.write(response1)
-    #st.write(response2)
-    #st.write(type(response1))
-    #st.write(type(response2))
-    
-    if len(df) > 0:
-        about_download_button = utils.download_button(utils.convert_schema("about", df.loc[df['name'].isin(selected_about_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'about-entities.json', 'Download About Entities JSON-LD ✨', pickle_it=False)
-        if len(df.loc[df['name'].isin(selected_about_names)]) > 0:
-            st.markdown(about_download_button, unsafe_allow_html=True)
-        mention_download_button = utils.download_button(utils.convert_schema("mentions", df.loc[df['name'].isin(selected_mention_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'mentions-entities.json', 'Download Mentions Entities JSON-LD ✨', pickle_it=False)
-        if len(df.loc[df['name'].isin(selected_mention_names)]) > 0:
-            st.markdown(mention_download_button, unsafe_allow_html=True)
-        download_buttons = ""
-        download_buttons += utils.download_button(df, 'entities.csv', 'Download all Entities CSV ✨', pickle_it=False)
-        st.markdown(download_buttons, unsafe_allow_html=True)
-    if spacy_pos:
-        if st.session_state.lang in "eng":
-            doc = st.session_state.en_nlp(st.session_state.text)
-            #print('English', doc)
-        elif st.session_state.lang in "ita":
-            doc = st.session_state.it_nlp(st.session_state.text)
-            #print('Itelian')
-        visualize_parser(doc)
+        text_input, is_url = utils.write_meta(text_input, meta_tags_only, is_url)
 
-
-if 'submit' in st.session_state and ("urlvsurl" in st.session_state and st.session_state.urlvsurl==True):
-    if 'df_url1' in st.session_state and "df_url2" in st.session_state:
-        df1 = list(itertools.chain.from_iterable(st.session_state["df_url1"].values))
-        df2 = list(itertools.chain.from_iterable(st.session_state["df_url2"].values))
-
-    ab = list(set(df1).intersection(set(df2)))
-    st.write('### Entities in both urls', pd.DataFrame({"entities": ab}))
-    amb = list(set(df1).difference(set(df2)))
-    bma = list(set(df2).difference(set(df1)))
-    # st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
-    # st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
-
-    if len(df1) > 0 and len(df2) > 0:
-        download_buttons = ""
-        download_buttons += utils.download_button(pd.DataFrame({"entities": ab}), 'url_common.csv', 'Download common Entities CSV ✨', pickle_it=False)
-        if amb:
-            st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
-            download_buttons += utils.download_button(pd.DataFrame({"entities": amb}), 'url1-url2.csv', 'Download url1 Entities CSV ✨', pickle_it=False)
+        if 'df_google' in st.session_state:
+            df = st.session_state["df_google"]
+        if len(df) > 0:
+            df['temp'] = df['Salience'].str.strip('%').astype(float)
+            df = df.sort_values('temp', ascending=False)
+            del df['temp']
+            selected_about_names = st.multiselect('Select About Entities:', df.name)
+            selected_mention_names = st.multiselect('Select Mentions Entities:', df.name)
+            #---------------------frequency counter
+        #response1 = [response]
+        utils.conf(df, "Confidence Score")
+        # st.write('### Entities', df)
+        if not is_url:
+            utils.word_frequency(df, text_input, language_option, texts)
         else:
-            st.write("0 entities in url1 which are not present in url2")
-        if bma:
-            st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
-            download_buttons += utils.download_button(pd.DataFrame({"entities": bma}), 'url2-url1.csv',
-                                                      'Download url2 Entities CSV ✨', pickle_it=False)
-        else:
-            st.write("0 entities in url2 which are not present url1")
-        st.markdown(download_buttons, unsafe_allow_html=True)
+            utils.word_frequency_google(df, response2)  #-----------------function call for google api
+        st.write('### Entities', df)
+
+        # st.write('#### Entity table Dimension', df.shape)
+        # if not is_url:
+        #     df1 = df.sort_values('Frequency', ascending=False)
+        #     st.write('### Top 10 Entities', df1[['name', 'Frequency']].head(10))
+
+        #response2 = list(response)
+        #st.write(response1)
+        #st.write(response2)
+        #st.write(type(response1))
+        #st.write(type(response2))
+
+        if len(df) > 0:
+            about_download_button = utils.download_button(utils.convert_schema("about", df.loc[df['name'].isin(selected_about_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'about-entities.json', 'Download About Entities JSON-LD ✨', pickle_it=False)
+            if len(df.loc[df['name'].isin(selected_about_names)]) > 0:
+                st.markdown(about_download_button, unsafe_allow_html=True)
+            mention_download_button = utils.download_button(utils.convert_schema("mentions", df.loc[df['name'].isin(selected_mention_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'mentions-entities.json', 'Download Mentions Entities JSON-LD ✨', pickle_it=False)
+            if len(df.loc[df['name'].isin(selected_mention_names)]) > 0:
+                st.markdown(mention_download_button, unsafe_allow_html=True)
+            download_buttons = ""
+            download_buttons += utils.download_button(df, 'entities.csv', 'Download all Entities CSV ✨', pickle_it=False)
+            st.markdown(download_buttons, unsafe_allow_html=True)
+        if spacy_pos:
+            if st.session_state.lang in "eng":
+                doc = st.session_state.en_nlp(st.session_state.text)
+                #print('English', doc)
+            elif st.session_state.lang in "ita":
+                doc = st.session_state.it_nlp(st.session_state.text)
+                #print('Itelian')
+            visualize_parser(doc)
