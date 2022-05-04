@@ -389,13 +389,13 @@ def get_df_url2url_razor(text_razor_key, text_input, are_urls, scrape_all=False)
         st.warning("Please make sure that the API Key is correct")
         st.stop()
 
-    output = []
-    known_entities = []
+    output1 = []
+    known_entities1 = []
     output2 = []
     known_entities2 = []
     for i, entity in enumerate(response1.entities()):
 
-        if entity.id not in known_entities and \
+        if entity.id not in known_entities1 and \
                 entity.confidence_score > 0 and \
                 entity.relevance_score > 0 and \
                 not str(entity.id).isnumeric() and not is_time(entity.id):
@@ -423,8 +423,8 @@ def get_df_url2url_razor(text_razor_key, text_input, are_urls, scrape_all=False)
             if not scrape_all:
                 del data["description"]
                 del data["English Wikipedia Link"]
-            # output.append(data)
-            known_entities.append(entity.id)
+            output1.append(data)
+            known_entities1.append(entity.id)
 
         for i, entity in enumerate(response2.entities()):
 
@@ -456,11 +456,12 @@ def get_df_url2url_razor(text_razor_key, text_input, are_urls, scrape_all=False)
                 if not scrape_all:
                     del data["description"]
                     del data["English Wikipedia Link"]
-                # output.append(data)
+                output2.append(data)
                 known_entities2.append(entity.id)
             progress_bar.progress(i / len(response2.entities()))
 
-    return known_entities, known_entities2, response1.language
+    return output1, output2, known_entities1, known_entities2, response1.language
+
 
 # ----------------------------Convert Confidence score value into percentage----------------------
 def conf(df, col):
@@ -733,7 +734,6 @@ def word_frequency(df, text_input, language_option, texts=None):
 
 # ---------------------google api frequency count-----------------
 def word_frequency_google(df, response2):
-
     word_count = []
 
     for word in list(df['name']):
@@ -748,9 +748,9 @@ def word_frequency_google(df, response2):
     # df['Frequency2'] = df['Frequency2'].astype('int64')
     return df
 
-#----------------------------Convert Confidence score value into percentage----------------------
+# ----------------------------Convert Confidence score value into percentage----------------------
 # def conf(col):
 #     if col in df:
 #         df[col] = (df[[col]].div(max(df[col]), axis=1)*100).round(2).astype(str) + '%'
 
-#-------------------------------------end----------------------------------------------
+# -------------------------------------end----------------------------------------------

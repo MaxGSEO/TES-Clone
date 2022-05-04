@@ -55,7 +55,7 @@ if "it_nlp" not in st.session_state:
     st.session_state.it_nlp = spacy.load("it_core_news_sm")
 
 
-# @st.cache(suppress_st_warning=True) 
+# @st.cache(suppress_st_warning=True)
 # def logo():
 # @st.cache(allow_output_mutation=True)
 # def logo():
@@ -84,12 +84,12 @@ def load_lottifile(filepath: str):
 loti_path = load_lottifile('data.json')
 #st.title('Lotti')
 with st.sidebar:
-    
+
     #time.sleep(3)
     st_lottie(loti_path, width=280, height=180, loop=False)
 
 df = None
-texts=None  #initialize for 
+texts=None  #initialize for
 language_option= None
 #response2 = None
 with st.form("my_form"):
@@ -101,12 +101,12 @@ with st.form("my_form"):
         "Choose what you want to analyze",
         ("URL", "Text", "URL vs URL")
     )
-    
+
     st.sidebar.info('##### Read this article to [learn more about how to use The Entities Swissknife](https://studiomakoto.it/digital-marketing/entity-seo-semantic-publishing/).')
-    st.sidebar.info('##### Register on the [TextRazor website](https://www.textrazor.com/) to obtain a free API keyword (🙌 500 calls/day 🙌) or activate the [NLP API](https://cloud.google.com/natural-language) inside your Google Cloud Console, and export the JSON authentication file.') 
+    st.sidebar.info('##### Register on the [TextRazor website](https://www.textrazor.com/) to obtain a free API keyword (🙌 500 calls/day 🙌) or activate the [NLP API](https://cloud.google.com/natural-language) inside your Google Cloud Console, and export the JSON authentication file.')
     st.sidebar.info('##### Knowledge Graph Entity ID is extracted only using the Google NLP API.')
-    st.sidebar.info('##### Categories and Topics - by [IPTC Media Topics](https://iptc.org/standards/media-topics/) - are avalaible only using the TextRazor API.') 
-   
+    st.sidebar.info('##### Categories and Topics - by [IPTC Media Topics](https://iptc.org/standards/media-topics/) - are avalaible only using the TextRazor API.')
+
     # loti_path = load_lottifile('lotti/seo.json')
     # with st.sidebar:
     #     st_lottie(loti_path, width=280, height=130)
@@ -125,7 +125,7 @@ This app, devoted to ✍️[Semantic Publishing](https://en.wikipedia.org/wiki/S
             
             """
         )
-              
+
     with st.expander("✍️ - Semantic Publishing "):
         st.write(
             """  
@@ -137,7 +137,7 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
             
             """
         )
-        
+
     with st.expander("🔎 - How TES can support your Semantic SEO tasks "):
         st.write(
             """  
@@ -226,7 +226,7 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
             st.session_state.submit = True
             if api_selectbox == "TextRazor":
                 if input_type_selectbox == "URL vs URL":
-                    output1, output2, language = utils.get_df_url2url_razor(text_razor_key, urls, are_urls)
+                    output1, output2, entities1, entities2, language = utils.get_df_url2url_razor(text_razor_key, urls, are_urls)
                     st.session_state.text_razor = True
                     st.session_state.google_api = False
                     st.session_state.df_url1 = pd.DataFrame(output1)
@@ -265,38 +265,35 @@ The table with the "Top Entities by Frequency" takes into account for the Freque
 
 if 'submit' in st.session_state and ("text_razor" in st.session_state and st.session_state.text_razor == True):
     if st.session_state.last_field_type == "URL vs URL":
-        if 'df_url1' in st.session_state and "df_url2" in st.session_state:
-            df1 = list(itertools.chain.from_iterable(st.session_state["df_url1"].values))
-            df2 = list(itertools.chain.from_iterable(st.session_state["df_url2"].values))
+        df1 = st.session_state["df_url1"].drop(columns=["DBpedia Category", "Wikidata Id", "Wikipedia Link"])
+        df2 = st.session_state["df_url2"].drop(columns=["DBpedia Category", "Wikidata Id", "Wikipedia Link"])
+        ab = pd.merge(df1, df2, how='inner', on=["name"])
+        ab.dropna(inplace=True)
+        names = pd.DataFrame({"name": ab["name"].values.tolist()})
+        amb = df1[~df1.name.isin(ab.name)]
+        bma = df2[~df2.name.isin(ab.name)]
 
-        ab = list(set(df1).intersection(set(df2)))
-        st.write('### Entities in both urls', pd.DataFrame({"entities": ab}))
-        amb = list(set(df1).difference(set(df2)))
-        bma = list(set(df2).difference(set(df1)))
-        # st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
-        # st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
+        st.write('### Entities in both urls', names)
 
-        if len(df1) > 0 and len(df2) > 0:
-            download_buttons = ""
-            download_buttons += utils.download_button(pd.DataFrame({"entities": ab}), 'url_common.csv',
-                                                      'Download common Entities CSV ✨', pickle_it=False)
-            if amb:
-                st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
-                download_buttons += utils.download_button(pd.DataFrame({"entities": amb}), 'url1-url2.csv',
-                                                          'Download url1 Entities CSV ✨', pickle_it=False)
-            else:
-                st.write("0 entities in url1 which are not present in url2")
-            if bma:
-                st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
-                download_buttons += utils.download_button(pd.DataFrame({"entities": bma}), 'url2-url1.csv',
-                                                          'Download url2 Entities CSV ✨', pickle_it=False)
-            else:
-                st.write("0 entities in url2 which are not present url1")
-            st.markdown(download_buttons, unsafe_allow_html=True)
+        download_buttons = ""
+        download_buttons += utils.download_button(names, 'url_common.csv',
+                                                  'Download common Entities CSV ✨', pickle_it=False)
+        if not amb.empty:
+            st.write('### Entities in url {}'.format(url1), amb)
+            download_buttons += utils.download_button(amb, 'url1-url2.csv',
+                                                      'Download url1 Entities CSV ✨', pickle_it=False)
+        else:
+            st.write("0 entities in url1 which are not present in url2")
+        if not bma.empty:
+            st.write('### Entities in url {}'.format(url2), bma)
+            download_buttons += utils.download_button(bma, 'url2-url1.csv',
+                                                      'Download url2 Entities CSV ✨', pickle_it=False)
+        else:
+            st.write("0 entities in url2 which are not present url1")
+        st.markdown(download_buttons, unsafe_allow_html=True)
+
     else:
         text_input, is_url = utils.write_meta(text_input, meta_tags_only, is_url)
-       # print('text_input\n', text_input)
-       # print('is_url\n', is_url)
         if 'df_razor' in st.session_state:
             df = st.session_state["df_razor"]
 
@@ -363,34 +360,33 @@ if 'submit' in st.session_state and ("text_razor" in st.session_state and st.ses
 
 if 'submit' in st.session_state and ("google_api" in st.session_state and st.session_state.google_api == True):
     if st.session_state.last_field_type == "URL vs URL":
-        if 'df_url1' in st.session_state and "df_url2" in st.session_state:
-            df1 = list(itertools.chain.from_iterable(st.session_state["df_url1"].values))
-            df2 = list(itertools.chain.from_iterable(st.session_state["df_url2"].values))
+        df1 = st.session_state["df_url1"].drop(columns=["type", "Knowledge Graph ID"])
+        df2 = st.session_state["df_url2"].drop(columns=["type", "Knowledge Graph ID"])
 
-        ab = list(set(df1).intersection(set(df2)))
-        st.write('### Entities in both urls', pd.DataFrame({"entities": ab}))
-        amb = list(set(df1).difference(set(df2)))
-        bma = list(set(df2).difference(set(df1)))
-        # st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
-        # st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
+        ab = pd.merge(df1, df2, how='inner', on=["name"])
+        names = ab["name"]
+        ab.dropna(inplace=True)
+        amb = df1[~df1.name.isin(ab.name)]
+        bma = df2[~df2.name.isin(ab.name)]
 
-        if len(df1) > 0 and len(df2) > 0:
-            download_buttons = ""
-            download_buttons += utils.download_button(pd.DataFrame({"entities": ab}), 'url_common.csv',
-                                                      'Download common Entities CSV ✨', pickle_it=False)
-            if amb:
-                st.write('### Entities in url {}'.format(url1), pd.DataFrame({"entities": amb}))
-                download_buttons += utils.download_button(pd.DataFrame({"entities": amb}), 'url1-url2.csv',
-                                                          'Download url1 Entities CSV ✨', pickle_it=False)
-            else:
-                st.write("0 entities in url1 which are not present in url2")
-            if bma:
-                st.write('### Entities in url {}'.format(url2), pd.DataFrame({"entities": bma}))
-                download_buttons += utils.download_button(pd.DataFrame({"entities": bma}), 'url2-url1.csv',
-                                                          'Download url2 Entities CSV ✨', pickle_it=False)
-            else:
-                st.write("0 entities in url2 which are not present url1")
-            st.markdown(download_buttons, unsafe_allow_html=True)
+        st.write('### Entities in both urls', names)
+
+        download_buttons = ""
+        download_buttons += utils.download_button(names, 'url_common.csv',
+                                                  'Download common Entities CSV ✨', pickle_it=False)
+        if not amb.empty:
+            st.write('### Entities in url {}'.format(url1), amb)
+            download_buttons += utils.download_button(amb, 'url1-url2.csv',
+                                                      'Download url1 Entities CSV ✨', pickle_it=False)
+        else:
+            st.write("0 entities in url1 which are not present in url2")
+        if not bma.empty:
+            st.write('### Entities in url {}'.format(url2), bma)
+            download_buttons += utils.download_button(bma, 'url2-url1.csv',
+                                                      'Download url2 Entities CSV ✨', pickle_it=False)
+        else:
+            st.write("0 entities in url2 which are not present url1")
+        st.markdown(download_buttons, unsafe_allow_html=True)
     else:
         text_input, is_url = utils.write_meta(text_input, meta_tags_only, is_url)
 
@@ -403,7 +399,6 @@ if 'submit' in st.session_state and ("google_api" in st.session_state and st.ses
             selected_about_names = st.multiselect('Select About Entities:', df.name)
             selected_mention_names = st.multiselect('Select Mentions Entities:', df.name)
             #---------------------frequency counter
-        #response1 = [response]
         utils.conf(df, "Confidence Score")
         # st.write('### Entities', df)
         if not is_url:
@@ -416,12 +411,6 @@ if 'submit' in st.session_state and ("google_api" in st.session_state and st.ses
         # if not is_url:
         #     df1 = df.sort_values('Frequency', ascending=False)
         #     st.write('### Top 10 Entities', df1[['name', 'Frequency']].head(10))
-
-        #response2 = list(response)
-        #st.write(response1)
-        #st.write(response2)
-        #st.write(type(response1))
-        #st.write(type(response2))
 
         if len(df) > 0:
             about_download_button = utils.download_button(utils.convert_schema("about", df.loc[df['name'].isin(selected_about_names)].to_json(orient='records'), scrape_all, st.session_state.lang), 'about-entities.json', 'Download About Entities JSON-LD ✨', pickle_it=False)
