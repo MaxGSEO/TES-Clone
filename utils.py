@@ -467,8 +467,6 @@ def get_df_url2url_razor(text_razor_key, text_input, are_urls, scrape_all=False)
 def conf(df, col):
     if col in df:
         df[col] = (df[[col]].div(max(df[col]), axis=1) * 100).round(2).astype(str) + '%'
-
-
 # -------------------------------------end----------------------------------------------
 
 
@@ -694,12 +692,9 @@ def write_meta(text_input, meta_tags_only, is_url):
 
 def word_frequency(df, text_input, language_option, texts=None):
     from nltk.stem.snowball import SnowballStemmer
-
     if language_option == 'eng':
-
         stemmer = SnowballStemmer(language='english')
     else:
-
         stemmer = SnowballStemmer(language='italian')
 
     # stemmer = snowballstemmer.stemmer('english')
@@ -747,10 +742,3 @@ def word_frequency_google(df, response2):
     df = df.insert(loc=3, column='Frequency', value=np.array(word_count))
     # df['Frequency2'] = df['Frequency2'].astype('int64')
     return df
-
-# ----------------------------Convert Confidence score value into percentage----------------------
-# def conf(col):
-#     if col in df:
-#         df[col] = (df[[col]].div(max(df[col]), axis=1)*100).round(2).astype(str) + '%'
-
-# -------------------------------------end----------------------------------------------

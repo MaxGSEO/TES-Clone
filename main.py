@@ -305,7 +305,7 @@ if 'submit' in st.session_state and ("text_razor" in st.session_state and st.ses
             selected_mention_names = st.multiselect('Select Mentions Entities:', df.name)
             #--------------Frequency count--------------
             #if not url:
-            utils.word_frequency(df, text_input, language_option, texts) #-----------------------Function call for textrazor-------------
+            utils.word_frequency(df, text_input, language_option, st.session_state.text) #-----------------------Function call for textrazor-------------
             st.write('### Entities', df)
             df = df.sort_values('Frequency', ascending=False)
             st.write('### Top 10 Entities by Frequency', df[['name', 'Frequency']].head(10))
@@ -398,13 +398,10 @@ if 'submit' in st.session_state and ("google_api" in st.session_state and st.ses
             del df['temp']
             selected_about_names = st.multiselect('Select About Entities:', df.name)
             selected_mention_names = st.multiselect('Select Mentions Entities:', df.name)
+            if not is_url:
+                utils.word_frequency_google(df, st.session_state.text)
             #---------------------frequency counter
         utils.conf(df, "Confidence Score")
-        # st.write('### Entities', df)
-        if not is_url:
-            utils.word_frequency(df, text_input, language_option, texts)
-        else:
-            utils.word_frequency_google(df, response2)  #-----------------function call for google api
         st.write('### Entities', df)
 
         # st.write('#### Entity table Dimension', df.shape)
