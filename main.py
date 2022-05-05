@@ -269,23 +269,37 @@ if 'submit' in st.session_state and ("text_razor" in st.session_state and st.ses
         df2 = st.session_state["df_url2"].drop(columns=["DBpedia Category", "Wikidata Id", "Wikipedia Link"])
         ab = pd.merge(df1, df2, how='inner', on=["name"])
         ab.dropna(inplace=True)
-        names = pd.DataFrame({"name": ab["name"].values.tolist()})
+        names = pd.DataFrame({"Entities": ab["name"].values.tolist()})
         amb = df1[~df1.name.isin(ab.name)]
         bma = df2[~df2.name.isin(ab.name)]
+        st.write("### Entities")
+        col1, col2, col3 = st.columns(3)
 
-        st.write('### Entities in both urls', names)
+        col1.markdown("Entities in both URLs")
+        col1.write(names)
+        with col2:
+            selection = st.radio(label='Select Entities', options=['Entities in Url1 only', 'Entities in Url2 only'])
+
+        if "Entities in Url1 only" == selection:
+            # st.write('### Entities in Url1 only', amb)
+            col3.markdown("Entities in Url1")
+            col3.write(amb)
+        elif "Entities in Url2 only" == selection:
+            # st.write('### Entities in Url2 only', bma)
+            col3.markdown("Entities in Url2")
+            col3.write(bma)
 
         download_buttons = ""
         download_buttons += utils.download_button(names, 'url_common.csv',
                                                   'Download common Entities CSV ✨', pickle_it=False)
         if not amb.empty:
-            st.write('### Entities in first url', amb)
+            # st.write('### Entities in first url', amb)
             download_buttons += utils.download_button(amb, 'url1-url2.csv',
                                                       'Download url1 Entities CSV ✨', pickle_it=False)
         else:
             st.write("0 entities in url1 which are not present in url2")
         if not bma.empty:
-            st.write('### Entities in second url ', bma)
+            # st.write('### Entities in second url', bma)
             download_buttons += utils.download_button(bma, 'url2-url1.csv',
                                                       'Download url2 Entities CSV ✨', pickle_it=False)
         else:
@@ -364,24 +378,39 @@ if 'submit' in st.session_state and ("google_api" in st.session_state and st.ses
         df2 = st.session_state["df_url2"].drop(columns=["type", "Knowledge Graph ID"])
 
         ab = pd.merge(df1, df2, how='inner', on=["name"])
-        names = pd.DataFrame({"name": ab["name"].values.tolist()})
+        names = pd.DataFrame({"Entities": ab["name"].values.tolist()})
         ab.dropna(inplace=True)
         amb = df1[~df1.name.isin(ab.name)]
         bma = df2[~df2.name.isin(ab.name)]
+        st.write("### Entities")
+        col1, col2, col3 = st.columns(3)
 
-        st.write('### Entities in both urls', names)
+        # st.write('### Entities in both urls', names)
+        col1.markdown("Entities in both URLs")
+        col1.write(names)
+        with col2:
+            selection = st.radio(label='Select Entities', options=['Entities in Url1 only', 'Entities in Url2 only'])
+
+        if "Entities in Url1 only" == selection:
+            # st.write('### Entities in Url1 only', amb)
+            col3.markdown("Entities in Url1")
+            col3.write(amb)
+        elif "Entities in Url2 only" == selection:
+            # st.write('### Entities in Url2 only', bma)
+            col3.markdown("Entities in Url2")
+            col3.write(bma)
 
         download_buttons = ""
         download_buttons += utils.download_button(names, 'url_common.csv',
                                                   'Download common Entities CSV ✨', pickle_it=False)
         if not amb.empty:
-            st.write('### Entities in url {}'.format(url1), amb)
+            # st.write('### Entities in first url', amb)
             download_buttons += utils.download_button(amb, 'url1-url2.csv',
                                                       'Download url1 Entities CSV ✨', pickle_it=False)
         else:
             st.write("0 entities in url1 which are not present in url2")
         if not bma.empty:
-            st.write('### Entities in url {}'.format(url2), bma)
+            # st.write('### Entities in second url', bma)
             download_buttons += utils.download_button(bma, 'url2-url1.csv',
                                                       'Download url2 Entities CSV ✨', pickle_it=False)
         else:
