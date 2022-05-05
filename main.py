@@ -279,13 +279,13 @@ if 'submit' in st.session_state and ("text_razor" in st.session_state and st.ses
         download_buttons += utils.download_button(names, 'url_common.csv',
                                                   'Download common Entities CSV ✨', pickle_it=False)
         if not amb.empty:
-            st.write('### Entities in url {}'.format(url1), amb)
+            st.write('### Entities in first url', amb)
             download_buttons += utils.download_button(amb, 'url1-url2.csv',
                                                       'Download url1 Entities CSV ✨', pickle_it=False)
         else:
             st.write("0 entities in url1 which are not present in url2")
         if not bma.empty:
-            st.write('### Entities in url {}'.format(url2), bma)
+            st.write('### Entities in second url ', bma)
             download_buttons += utils.download_button(bma, 'url2-url1.csv',
                                                       'Download url2 Entities CSV ✨', pickle_it=False)
         else:
