@@ -364,7 +364,7 @@ if 'submit' in st.session_state and ("google_api" in st.session_state and st.ses
         df2 = st.session_state["df_url2"].drop(columns=["type", "Knowledge Graph ID"])
 
         ab = pd.merge(df1, df2, how='inner', on=["name"])
-        names = ab["name"]
+        names = pd.DataFrame({"name": ab["name"].values.tolist()})
         ab.dropna(inplace=True)
         amb = df1[~df1.name.isin(ab.name)]
         bma = df2[~df2.name.isin(ab.name)]
