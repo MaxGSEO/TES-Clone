@@ -736,7 +736,6 @@ def word_frequency_google(df, response2):
 
         count = response2.count(word) / 2
         count = math.ceil(count)
-        print('inside funtion response1\n')
         word_count.append(count)
 
     df = df.insert(loc=3, column='Frequency', value=np.array(word_count))
